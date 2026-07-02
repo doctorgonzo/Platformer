@@ -1,20 +1,16 @@
 using UnityEngine;
 
-// Runs before PlayerMovement so riders read this step's velocity, not last step's
-[DefaultExecutionOrder(-100)]
-public class PlatformMover : MonoBehaviour
+public class GroundEnemyMover : MonoBehaviour
 {
+    private Rigidbody2D rb;
+    [SerializeField] private float moveSpeed = 3f;
     [Header("Waypoints")]
     [SerializeField] private Transform pointA;
     [SerializeField] private Transform pointB;
-    [SerializeField] private float moveSpeed = 3f;
-    [SerializeField] private float reachThreshold = 0.05f;
-    private Rigidbody2D rb;
+    [SerializeField] private float reachThreshold = 0.25f;
     private Transform currentTarget;
 
-    public Vector2 Velocity { get; private set; }
-
-    void Awake()
+    private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         rb.bodyType = RigidbodyType2D.Kinematic;
@@ -24,7 +20,6 @@ public class PlatformMover : MonoBehaviour
     private void FixedUpdate()
     {
         Vector2 newPosition = Vector2.MoveTowards(rb.position, currentTarget.position, moveSpeed * Time.fixedDeltaTime);
-        Velocity = (newPosition - rb.position) / Time.fixedDeltaTime;
         rb.MovePosition(newPosition);
 
         if (Vector2.Distance(newPosition, currentTarget.position) < reachThreshold)
@@ -32,4 +27,11 @@ public class PlatformMover : MonoBehaviour
             currentTarget = currentTarget == pointA ? pointB : pointA;
         }
     }
+
+    public void OnStomped()
+    {
+        Debug.Log(name + " was stomped");
+        Destroy(gameObject);
+    }
+
 }

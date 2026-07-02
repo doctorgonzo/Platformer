@@ -20,6 +20,9 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float groundCheckRadius = 0.15f;
     [SerializeField] private LayerMask groundLayers;
 
+    [Header("Stomp")]
+    [SerializeField] private float stompBounceVelocity = 8f;
+
     [Header("Push")]
     [SerializeField] private float pushForce = 5f;
     [SerializeField] private Transform pushCheck;
@@ -28,7 +31,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private GameObject pushLightLeft;
     [SerializeField] private float pushCooldown = 0.5f;
     private float lastPushTime = -Mathf.Infinity;
-    private Rigidbody2D rb;
+    public Rigidbody2D rb;
     private float moveInput;
     private bool jumpQueued;
     private bool isGrounded;
@@ -36,7 +39,17 @@ public class PlayerMovement : MonoBehaviour
     private bool isJumping;
     private bool jumpHeld;
     private float jumpHoldTimer;
-
+    [Header("Spawn Point")]
+    [SerializeField] public GameObject spawnPoint;
+    public static PlayerMovement Instance { get; private set; }
+    [Header("Knockback and Invulnerability")]
+    [SerializeField] private float knockbackForce = 3f; // Force applied when taking damage
+    [SerializeField] private float knockbackUpwardVelocity = 5f; // pop up as well as away, so knockback breaks contact
+    [SerializeField] private float knockbackDuration = 0.2f; // movement control suspended while knocked back
+    [SerializeField] private float invulnerabilityDuration = 1f; // i-frames after a hit
+    private float knockbackTimer;
+    private float invulnerabilityTimer;
+    private float velocityYBeforeSolve; // fall speed going into the physics solve, see HandleEnemyContact
 
     private void Awake()
     {
@@ -44,6 +57,23 @@ public class PlayerMovement : MonoBehaviour
         //rb.sharedMaterial = new PhysicsMaterial2D("PlayerNoFriction") { friction = 0f, bounciness = 0f };
         pushLightRight.SetActive(false);
         pushLightLeft.SetActive(false);
+        gameObject.transform.position = spawnPoint.transform.position;
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+        GetComponent<SpriteRenderer>().color = Color.green;
+    }
+
+    private void OnDestroy()
+    {
+        // Clear the reference so a stale destroyed object isn't returned later.
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
 
     private void Update()
@@ -66,23 +96,49 @@ public class PlayerMovement : MonoBehaviour
         {
             jumpHeld = false;
         }
-        
         if (Input.GetKeyDown(KeyCode.E) && Time.time >= lastPushTime + pushCooldown)
         {
             DoPush();
             lastPushTime = Time.time;
         }
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            gameObject.transform.position = spawnPoint.transform.position;
+        }
     }
 
     private void FixedUpdate()
     {
-        isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayers);
+        Collider2D groundHit = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayers);
+        isGrounded = groundHit != null;
+        PlatformMover platform = isGrounded ? groundHit.GetComponentInParent<PlatformMover>() : null;
+        Vector2 platformVelocity = platform != null ? platform.Velocity : Vector2.zero;
 
-        float targetVelocityX = moveInput * moveSpeed;
-        float acceleration = isGrounded ? groundAcceleration : airAcceleration;
+        if (invulnerabilityTimer > 0f)
+        {
+            invulnerabilityTimer -= Time.fixedDeltaTime;
+        }
 
-        float newVelocityX = Mathf.MoveTowards(rb.linearVelocity.x, targetVelocityX, acceleration * Time.fixedDeltaTime);
-        rb.linearVelocity = new Vector2(newVelocityX, rb.linearVelocity.y);
+        // While knocked back, leave velocity alone: both the input steering and the
+        // platform ride below would otherwise erase the knockback within a few steps.
+        if (knockbackTimer > 0f)
+        {
+            knockbackTimer -= Time.fixedDeltaTime;
+        }
+        else
+        {
+            float targetVelocityX = moveInput * moveSpeed + platformVelocity.x;
+            float acceleration = isGrounded ? groundAcceleration : airAcceleration;
+
+            float newVelocityX = Mathf.MoveTowards(rb.linearVelocity.x, targetVelocityX, acceleration * Time.fixedDeltaTime);
+            rb.linearVelocity = new Vector2(newVelocityX, rb.linearVelocity.y);
+
+            // Ride the platform: match its vertical velocity so gravity/depenetration can't cause bouncing
+            if (platform != null && !isJumping)
+            {
+                rb.linearVelocity = new Vector2(rb.linearVelocity.x, platformVelocity.y);
+            }
+        }
 
         if (jumpQueued)
         {
@@ -111,6 +167,10 @@ public class PlayerMovement : MonoBehaviour
             isJumping = false; // stop adding force once falling
         }
     }
+
+        // FixedUpdate runs before the physics solve, so this is our true velocity
+        // at impact time — unlike rb.linearVelocity read inside collision callbacks.
+        velocityYBeforeSolve = rb.linearVelocity.y;
     }
 
     private void DoPush()
@@ -147,5 +207,62 @@ public class PlayerMovement : MonoBehaviour
         yield return new WaitForSeconds(.2f);
         pushLightRight.SetActive(false);
         pushLightLeft.SetActive(false);
+    }
+
+    // Stay as well as Enter: if knockback doesn't fully separate us from the enemy
+    // (or it walks back into us), the contact never re-Enters, so damage would
+    // otherwise only ever apply once per touch. The i-frame timer sets the pace.
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        HandleEnemyContact(collision);
+    }
+
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        HandleEnemyContact(collision);
+    }
+
+    private void HandleEnemyContact(Collision2D collision)
+    {
+        if (!collision.gameObject.TryGetComponent(out GroundEnemyMover enemy))
+        {
+            return;
+        }
+
+        // A stomp needs both: a top contact AND downward motion at impact.
+        // The contact normal points from the enemy toward us, so y > 0.5 means
+        // we hit its top (allows up to ~60 degrees off vertical) — but corner
+        // grazes while jumping up past the enemy also produce an upward normal,
+        // so require that we were actually falling. rb.linearVelocity is already
+        // zeroed by the solver in this callback, hence the cached pre-solve value.
+        bool wasFalling = velocityYBeforeSolve < -0.1f;
+        for (int i = 0; i < collision.contactCount; i++)
+        {
+            if (wasFalling && collision.GetContact(i).normal.y > 0.5f)
+            {
+                enemy.OnStomped();
+                rb.linearVelocity = new Vector2(rb.linearVelocity.x, stompBounceVelocity);
+                return;
+            }
+        }
+
+        if (invulnerabilityTimer > 0f)
+        {
+            return;
+        }
+
+        // Take damage and get knocked away from the enemy. The contact normal's
+        // x sign is the push direction (hit from the right -> normal.x < 0 ->
+        // push left); for near-vertical normals (corner grazes) fall back to
+        // which side of the enemy we're on.
+        Debug.Log("Hit by: " + collision.gameObject.name);
+        float normalX = collision.GetContact(0).normal.x;
+        float knockbackDirection = Mathf.Abs(normalX) > 0.01f
+            ? Mathf.Sign(normalX)
+            : Mathf.Sign(transform.position.x - collision.transform.position.x);
+        rb.linearVelocity = new Vector2(knockbackDirection * knockbackForce, knockbackUpwardVelocity);
+        knockbackTimer = knockbackDuration;
+        invulnerabilityTimer = invulnerabilityDuration;
+        Player.Instance.TakeDamage(1);
     }
 }
