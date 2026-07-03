@@ -6,6 +6,8 @@ public class PlayerMovement : MonoBehaviour
 {
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 8f;
+    [SerializeField] private float maxSpeed = 12f;
+    [SerializeField] private float minSpeed = 8f;
     [SerializeField] private float groundAcceleration = 60f; // ground: near-instant response
     [SerializeField] private float airAcceleration = 12f;    // air: slow, limited steering
 
@@ -69,7 +71,6 @@ public class PlayerMovement : MonoBehaviour
 
     private void OnDestroy()
     {
-        // Clear the reference so a stale destroyed object isn't returned later.
         if (Instance == this)
         {
             Instance = null;
@@ -105,6 +106,17 @@ public class PlayerMovement : MonoBehaviour
         {
             gameObject.transform.position = spawnPoint.transform.position;
         }
+        if (Input.GetKeyDown(KeyCode.LeftShift))
+        {
+            if (/* moveInput != 0 && */ isGrounded)
+            {
+                moveSpeed = maxSpeed;
+            }
+        }
+        if (Input.GetKeyUp(KeyCode.LeftShift))
+        {
+            moveSpeed = minSpeed;
+        }
     }
 
     private void FixedUpdate()
@@ -113,12 +125,10 @@ public class PlayerMovement : MonoBehaviour
         isGrounded = groundHit != null;
         PlatformMover platform = isGrounded ? groundHit.GetComponentInParent<PlatformMover>() : null;
         Vector2 platformVelocity = platform != null ? platform.Velocity : Vector2.zero;
-
         if (invulnerabilityTimer > 0f)
         {
             invulnerabilityTimer -= Time.fixedDeltaTime;
         }
-
         // While knocked back, leave velocity alone: both the input steering and the
         // platform ride below would otherwise erase the knockback within a few steps.
         if (knockbackTimer > 0f)
@@ -129,17 +139,14 @@ public class PlayerMovement : MonoBehaviour
         {
             float targetVelocityX = moveInput * moveSpeed + platformVelocity.x;
             float acceleration = isGrounded ? groundAcceleration : airAcceleration;
-
             float newVelocityX = Mathf.MoveTowards(rb.linearVelocity.x, targetVelocityX, acceleration * Time.fixedDeltaTime);
             rb.linearVelocity = new Vector2(newVelocityX, rb.linearVelocity.y);
-
             // Ride the platform: match its vertical velocity so gravity/depenetration can't cause bouncing
             if (platform != null && !isJumping)
             {
                 rb.linearVelocity = new Vector2(rb.linearVelocity.x, platformVelocity.y);
             }
         }
-
         if (jumpQueued)
         {
             if (isGrounded)
@@ -167,7 +174,6 @@ public class PlayerMovement : MonoBehaviour
             isJumping = false; // stop adding force once falling
         }
     }
-
         // FixedUpdate runs before the physics solve, so this is our true velocity
         // at impact time — unlike rb.linearVelocity read inside collision callbacks.
         velocityYBeforeSolve = rb.linearVelocity.y;
@@ -228,7 +234,6 @@ public class PlayerMovement : MonoBehaviour
         {
             return;
         }
-
         // A stomp needs both: a top contact AND downward motion at impact.
         // The contact normal points from the enemy toward us, so y > 0.5 means
         // we hit its top (allows up to ~60 degrees off vertical) — but corner
@@ -245,12 +250,10 @@ public class PlayerMovement : MonoBehaviour
                 return;
             }
         }
-
         if (invulnerabilityTimer > 0f)
         {
             return;
         }
-
         // Take damage and get knocked away from the enemy. The contact normal's
         // x sign is the push direction (hit from the right -> normal.x < 0 ->
         // push left); for near-vertical normals (corner grazes) fall back to
@@ -264,5 +267,17 @@ public class PlayerMovement : MonoBehaviour
         knockbackTimer = knockbackDuration;
         invulnerabilityTimer = invulnerabilityDuration;
         Player.Instance.TakeDamage(1);
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.gameObject.CompareTag("DeathZone"))
+        {
+            Player.Instance.TakeDamage(100);
+        }
+        if (collision.gameObject.CompareTag("Checkpoint"))
+        {
+            spawnPoint.transform.position = collision.gameObject.transform.GetChild(0).transform.position;
+        }
     }
 }
