@@ -1310,6 +1310,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c3a0cb6166d1f484f9233630a2c9483e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
+  scoreValue: 100
   moveSpeed: 3
   pointA: {fileID: 1938724779}
   pointB: {fileID: 372146144}
@@ -1646,9 +1647,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   moveSpeed: 8
   maxSpeed: 12
-  minSpeed: 8
   groundAcceleration: 60
-  airAcceleration: 12
+  airAcceleration: 13.6
   jumpForce: 3.19
   jumpHoldForce: 23.7
   maxJumpHoldTime: 0.32
@@ -1666,7 +1666,7 @@ MonoBehaviour:
   pushCooldown: 0.5
   rb: {fileID: 0}
   spawnPoint: {fileID: 1756064825}
-  knockbackForce: 10.3
+  knockbackForce: 10
   knockbackUpwardVelocity: 5
   knockbackDuration: 0.2
   invulnerabilityDuration: 1
@@ -2898,6 +2898,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c3a0cb6166d1f484f9233630a2c9483e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
+  scoreValue: 100
   moveSpeed: 3
   pointA: {fileID: 934029997}
   pointB: {fileID: 1547565915}
@@ -3086,7 +3087,7 @@ Transform:
   m_GameObject: {fileID: 1185032142}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -42.7, y: -0.7, z: 0}
+  m_LocalPosition: {x: 127, y: -2.86, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3164,8 +3165,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1edf59c0016394f97a71c4f5a3e82b6c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlyingEnemyMover
-  rb: {fileID: 0}
+  scoreValue: 100
   speed: 5
+  acceleration: 10.3
+  aggroRange: 10
+  belowPlayerOffset: 1
 --- !u!60 &1185032146
 PolygonCollider2D:
   m_ObjectHideFlags: 0
@@ -4305,6 +4309,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c3a0cb6166d1f484f9233630a2c9483e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
+  scoreValue: 100
   moveSpeed: 3
   pointA: {fileID: 1973713307}
   pointB: {fileID: 1295614083}
@@ -4611,7 +4616,7 @@ Transform:
   m_GameObject: {fileID: 1756064825}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -52.6, y: -8, z: 0}
+  m_LocalPosition: {x: 111.4, y: -8, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5397,6 +5402,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c3a0cb6166d1f484f9233630a2c9483e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
+  scoreValue: 100
   moveSpeed: 3
   pointA: {fileID: 44238056}
   pointB: {fileID: 1221551777}

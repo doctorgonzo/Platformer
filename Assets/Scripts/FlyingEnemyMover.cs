@@ -6,6 +6,7 @@ public class FlyingEnemyMover : Enemy
     [SerializeField] private float speed = 5f;
     [SerializeField] private float acceleration = 15f;
     [SerializeField] private float aggroRange = 6f;
+    [SerializeField] private float belowPlayerOffset = 1f; // aim under the player's feet, not their center
 
     private void Awake()
     {
@@ -19,10 +20,13 @@ public class FlyingEnemyMover : Enemy
         Player player = Player.Instance;
         if (player != null && !player.IsDead)
         {
-            Vector2 toPlayer = (Vector2)player.transform.position - rb.position;
-            if (toPlayer.sqrMagnitude <= aggroRange * aggroRange)
+            Vector2 playerPosition = player.transform.position;
+            if ((playerPosition - rb.position).sqrMagnitude <= aggroRange * aggroRange)
             {
-                desiredVelocity = toPlayer.normalized * speed;
+                // Approach from below so the enemy presents its top to the
+                // player's feet, giving them a chance to stomp it
+                Vector2 aimPoint = playerPosition + Vector2.down * belowPlayerOffset;
+                desiredVelocity = (aimPoint - rb.position).normalized * speed;
             }
         }
 

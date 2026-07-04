@@ -5,9 +5,8 @@ using UnityEngine.Experimental.GlobalIllumination;
 public class PlayerMovement : MonoBehaviour
 {
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 8f;
-    [SerializeField] private float maxSpeed = 12f;
-    [SerializeField] private float minSpeed = 8f;
+    [SerializeField] private float moveSpeed = 8f;   // walking
+    [SerializeField] private float maxSpeed = 12f;   // sprinting (shift held on the ground)
     [SerializeField] private float groundAcceleration = 60f; // ground: near-instant response
     [SerializeField] private float airAcceleration = 12f;    // air: slow, limited steering
 
@@ -41,6 +40,8 @@ public class PlayerMovement : MonoBehaviour
     private bool isJumping;
     private bool jumpHeld;
     private float jumpHoldTimer;
+    private bool sprintHeld;
+    private float currentMoveSpeed; // decided while grounded, frozen while airborne
     [Header("Spawn Point")]
     [SerializeField] public GameObject spawnPoint;
     public static PlayerMovement Instance { get; private set; }
@@ -56,6 +57,7 @@ public class PlayerMovement : MonoBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        currentMoveSpeed = moveSpeed;
         //rb.sharedMaterial = new PhysicsMaterial2D("PlayerNoFriction") { friction = 0f, bounciness = 0f };
         pushLightRight.SetActive(false);
         pushLightLeft.SetActive(false);
@@ -106,17 +108,7 @@ public class PlayerMovement : MonoBehaviour
         {
             gameObject.transform.position = spawnPoint.transform.position;
         }
-        if (Input.GetKeyDown(KeyCode.LeftShift))
-        {
-            if (/* moveInput != 0 && */ isGrounded)
-            {
-                moveSpeed = maxSpeed;
-            }
-        }
-        if (Input.GetKeyUp(KeyCode.LeftShift))
-        {
-            moveSpeed = minSpeed;
-        }
+        sprintHeld = Input.GetKey(KeyCode.LeftShift);
     }
 
     private void FixedUpdate()
@@ -137,7 +129,14 @@ public class PlayerMovement : MonoBehaviour
         }
         else
         {
-            float targetVelocityX = moveInput * moveSpeed + platformVelocity.x;
+            // Sprint is decided fresh every tick on the ground; in the air we keep
+            // the takeoff speed so sprint momentum carries through a jump (and you
+            // can't start sprinting mid-air)
+            if (isGrounded)
+            {
+                currentMoveSpeed = sprintHeld ? maxSpeed : moveSpeed;
+            }
+            float targetVelocityX = moveInput * currentMoveSpeed + platformVelocity.x;
             float acceleration = isGrounded ? groundAcceleration : airAcceleration;
             float newVelocityX = Mathf.MoveTowards(rb.linearVelocity.x, targetVelocityX, acceleration * Time.fixedDeltaTime);
             rb.linearVelocity = new Vector2(newVelocityX, rb.linearVelocity.y);
@@ -243,7 +242,7 @@ public class PlayerMovement : MonoBehaviour
         bool wasFalling = velocityYBeforeSolve < -0.1f;
         for (int i = 0; i < collision.contactCount; i++)
         {
-            if (wasFalling && collision.GetContact(i).normal.y > 0.5f)
+            if (wasFalling && collision.GetContact(i).normal.y > 0.3f)
             {
                 enemy.OnStomped();
                 rb.linearVelocity = new Vector2(rb.linearVelocity.x, stompBounceVelocity);
