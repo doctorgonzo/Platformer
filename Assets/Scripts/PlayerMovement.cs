@@ -278,6 +278,7 @@ public class PlayerMovement : MonoBehaviour
         if (collision.gameObject.CompareTag("Checkpoint"))
         {
             spawnPoint.transform.position = collision.gameObject.transform.GetChild(0).transform.position;
+            Destroy(collision.gameObject);
         }
     }
 }

@@ -31,6 +31,7 @@ public class GroundEnemyMover : MonoBehaviour
     public void OnStomped()
     {
         Debug.Log(name + " was stomped");
+        ScoreKeeper.Instance.AddScore(100);
         Destroy(gameObject);
     }
 
