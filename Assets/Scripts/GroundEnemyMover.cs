@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class GroundEnemyMover : MonoBehaviour
+public class GroundEnemyMover : Enemy
 {
     private Rigidbody2D rb;
     [SerializeField] private float moveSpeed = 3f;
@@ -27,12 +27,4 @@ public class GroundEnemyMover : MonoBehaviour
             currentTarget = currentTarget == pointA ? pointB : pointA;
         }
     }
-
-    public void OnStomped()
-    {
-        Debug.Log(name + " was stomped");
-        ScoreKeeper.Instance.AddScore(100);
-        Destroy(gameObject);
-    }
-
 }

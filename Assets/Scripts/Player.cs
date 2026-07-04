@@ -10,6 +10,7 @@ public class Player : MonoBehaviour
    [SerializeField] private int maxLives = 3;
    [SerializeField] private GameObject explosionPrefab;
    private bool isDead;
+   public bool IsDead => isDead;
    public static Player Instance { get; private set; }
    [Header("Cached Components")]
    [SerializeField] private Image[] livesUI;

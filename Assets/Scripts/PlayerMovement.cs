@@ -230,7 +230,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleEnemyContact(Collision2D collision)
     {
-        if (!collision.gameObject.TryGetComponent(out GroundEnemyMover enemy))
+        if (!collision.gameObject.TryGetComponent(out Enemy enemy))
         {
             return;
         }
